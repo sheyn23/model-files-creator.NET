@@ -1,10 +1,13 @@
+#!/usr/bin/env python3.9.6
 import os
 
 # Получение названия проекта
-projectName = input("Введите название проекта: ")
+# projectName = input("Введите название проекта: ")
+projectName = "Test"
 
 # Получение названия модели
-modelName = input("Введите название модели в стиле CamelCase: ")
+# modelName = input("Введите название модели в стиле CamelCase: ")
+modelName = "Doctor"
 
 # Получение настоящей директории
 currentDir = os.path.dirname(os.path.realpath(__file__))
@@ -138,6 +141,7 @@ controllerContent = (f"using AutoMapper;\n"
                      f"        }}\n"
                      f"    }}\n"
                      f"}}\n")
+
 serviceContent = (f"using {projectName}.Core.RepositoryInterfaces;\n"
                   f"using {projectName}.Core.ServiceInterfaces;\n"
                   f"\n"
@@ -153,6 +157,7 @@ serviceContent = (f"using {projectName}.Core.RepositoryInterfaces;\n"
                   f"        }}\n"
                   f"    }}\n"
                   f"}}\n")
+
 dtoContent = (f"using Newtonsoft.Json;\n"
               f"using {projectName}.Core.Models.Dto;\n"
               f"using System;\n"
@@ -169,6 +174,7 @@ dtoContent = (f"using Newtonsoft.Json;\n"
               f"        public string Name {{ get; set; }}\n"
               f"    }}\n"
               f"}}\n")
+
 iRepoContent = (f"using {projectName}.Core.Entities;\n"
                 f"using System;\n"
                 f"using System.Threading.Tasks;\n"
@@ -179,6 +185,7 @@ iRepoContent = (f"using {projectName}.Core.Entities;\n"
                 f"    {{\n"
                 f"    }}\n"
                 f"}}\n")
+
 iServiceContent = (f"using System;\n"
                    f"using System.Threading.Tasks;\n"
                    f"using {projectName}.Core.Entities;\n"
@@ -190,6 +197,7 @@ iServiceContent = (f"using System;\n"
                    f"    {{\n"
                    f"    }}\n"
                    f"}}\n")
+
 repoContent = (f"using {projectName}.Core.RepositoryInterfaces;\n"
                f"using {projectName}.Core.Entities;\n"
                f"using System;\n"
@@ -208,6 +216,18 @@ repoContent = (f"using {projectName}.Core.RepositoryInterfaces;\n"
                f"    }}\n"
                f"}}\n"
                )
+
+
+class Colors:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKCYAN = '\033[96m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
 
 
 def yes_no_dialog(question, default_answer="yes"):
@@ -237,50 +257,167 @@ def createFile(path, name, content):
     folderExist = os.path.exists(currentPath)
 
     if not folderExist:
-        # Создать папку .DAL/Repositories
+        # Создать папку {currentDir+path}
         os.makedirs(currentPath)
-        print(f"{path} директория создана!")
+        print(f"{Colors.OKGREEN}{path} директория создана!{Colors.ENDC}")
 
+    # Создать файл и записать содержимое
     with open(f"{currentPath}/{name}", "w") as file:
         file.write(content)
 
 
-# createFolderAsk = yes_no_dialog(
-#     f"Создать папку {projectName}.Api/Controllers", "no")
-# print("результат опроса", createFolderAsk)
+def createFiles():
+    createFile(
+        f"/{projectName}.Api/Controllers",
+        f"{modelName}Controller.cs",
+        controllerContent
+    )
+    createFile(
+        f"/{projectName}.BLL/Services",
+        f"{modelName}Service.cs",
+        serviceContent
+    )
+    createFile(
+        f"/{projectName}.Core/Models/Dto/{modelName}",
+        f"Dto{modelName}.cs",
+        dtoContent
+    )
+    createFile(
+        f"/{projectName}.Core/RepositoryInterfaces",
+        f"I{modelName}Repository.cs",
+        iRepoContent
+    )
+    createFile(
+        f"/{projectName}.Core/ServiceInterfaces",
+        f"I{modelName}Service.cs",
+        iServiceContent
+    )
+    createFile(
+        f"/{projectName}.DAL/Repositories",
+        f"{modelName}Repository.cs",
+        repoContent
+    )
 
-createFile(
-    f"/{projectName}.Api/Controllers",
-    f"{modelName}Controller.cs",
-    controllerContent
-)
 
-createFile(
-    f"/{projectName}.BLL/Services",
-    f"{modelName}Service.cs",
-    serviceContent
-)
+def declarationFiles():
+    # MapProfile.cs
+    putInFile(
+        f"/{projectName}.Api/AutoMapper/MapProfile.cs",
+        "Configure",
+        f"\tConfigure{modelName}();"
+    )
+    putInFile(
+        f"/{projectName}.Api/AutoMapper/MapProfile.cs",
+        "private void Configure",
+        f"private void Configure{modelName}()\n"
+        f"\t\t{{\n"
+        f"\t\t    CreateMap<{modelName}, Dto{modelName}>();\n"
+        f"\t\t    CreateMap<Dto{modelName}, {modelName}>();\n"
+        f"\t\t}}"
+    )
+    # Startup.cs
+    putInFile(
+        f"/{projectName}.Api/Startup.cs",
+        "services.AddScoped<I",
+        f"\tservices.AddScoped<{modelName}Service>(provider =>\n"
+        f"\t\t\t\tnew {modelName}Service(provider.GetService<IUnitOfWork>()));\n"
+    )
+    # IUnitOfWork
+    putInFile(
+        f"/{projectName}.Core/RepositoryInterfaces/IUnitOfWork.cs",
+        "{ get; }",
+        f"I{modelName}Repository {modelName}s {{ get; }}"
+    )
+    # UnitOfWork.cs
+    putInFile(
+        f"/{projectName}.DAL/UnitOfWork.cs",
+        "{ get; }",
+        f"public I{modelName}Repository {modelName}s {{ get; }}"
+    )
+    putInFile(
+        f"/{projectName}.DAL/UnitOfWork.cs",
+        "(_context);",
+        f"\t{modelName}s = new {modelName}Repository(_context);"
+    )
+    putInFile(
+        f"/{projectName}.DAL/UnitOfWork.cs",
+        "else if (typeof(T) == typeof(",
+        f"\telse if (typeof(T) == typeof({modelName}))\n"
+        f"\t\t\t{{\n"
+        f"\t\t\t\treturn {modelName}s as IRepository<T>;\n"
+        f"\t\t\t}}"
+    )
+    # DBContext.cs
+    putInFile(
+        f"/{projectName}.DAL/{projectName}DBContext.cs",
+        "public DbSet",
+        f"public DbSet<{modelName}> {modelName}s {{ get; set; }}"
+    )
 
-createFile(
-    f"/{projectName}.Core/Models/Dto/{modelName}",
-    f"/Dto{modelName}.cs",
-    dtoContent
-)
 
-createFile(
-    f"/{projectName}.Core/RepositoryInterfaces",
-    f"/I{modelName}Repository.cs",
-    iRepoContent
-)
+def putInFile(path, replaceBefore, replaceString):
+    currentPath = currentDir + path
+    folderExist = os.path.isfile(currentPath)
 
-createFile(
-    f"/{projectName}.Core/ServiceInterfaces",
-    f"/I{modelName}Service.cs",
-    iServiceContent
-)
+    if folderExist:
+        with open(currentPath, "r") as file:
+            fileData = file.read()
 
-createFile(
-    f"/{projectName}.DAL/Repositories",
-    f"/{modelName}Repository.cs",
-    repoContent
-)
+        with open(currentPath, "r") as copyFile:
+            lines = copyFile.readlines()
+            if index_containing_substring(lines, replaceString) != -1:
+                print(
+                    f"{Colors.FAIL}Уже имеется, не меняю!{Colors.ENDC} \tВ файле: {path}\t строка: {replaceString}\n")
+                return
+            else:
+                print(
+                    f"{Colors.WARNING}Начинаем поиск в файле {Colors.ENDC}{path}\n")
+                matchesDBSet = index_containing_substring(lines, replaceBefore)
+
+                if matchesDBSet != -1:
+                    print("Нашел куда добавить, сейчас сделаю!\t" + "\n")
+                    replacedData = fileData.replace(
+                        lines[matchesDBSet],
+                        f"\t\t{replaceString}\n{lines[matchesDBSet]}"
+                    )
+                    with open(currentPath, "w") as writedFile:
+                        writedFile.write(replacedData)
+                    print(
+                        f"{Colors.OKGREEN}Декларация прошла успешно!{Colors.ENDC}\n")
+                else:
+                    print(
+                        f"{Colors.FAIL}Не нашел что менять, странно...{Colors.ENDC}\n")
+                    return
+
+
+def index_containing_substring(theList, substring):
+    for i, s in enumerate(theList):
+        if substring in s:
+            return i
+    return -1
+
+
+def main():
+    createFolderAsk = yes_no_dialog(
+        f"\nБудут созданы следующие файлы:\n"
+        f"{Colors.WARNING}/{projectName}.Api/Controllers/{modelName}Controller.cs\n"
+        f"/{projectName}.BLL/Services/{modelName}Service.cs\n"
+        f"/{projectName}.Core/Models/Dto/{modelName}/Dto{modelName}.cs\n"
+        f"/{projectName}.Core/RepositoryInterfaces/I{modelName}Repository.cs\n"
+        f"/{projectName}.Core/ServiceInterfaces/I{modelName}Service.cs\n"
+        f"/{projectName}.DAL/Repositories/{modelName}Repository.cs{Colors.ENDC}\n"
+        f"\nДекларации в следующих файлах:"
+        f"Вы подтверждаете создание данных файлов", "no")
+
+    if createFolderAsk:
+        createFiles()
+        declarationFiles()
+    else:
+        print(f"{Colors.OKGREEN}Понял, выключаюсь!{Colors.ENDC}")
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except KeyboardInterrupt:
+        pass
