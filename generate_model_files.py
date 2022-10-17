@@ -230,7 +230,7 @@ class Colors:
     UNDERLINE = '\033[4m'
 
 
-def yes_no_dialog(question, default_answer="yes"):
+def yesNoDialog(question, default_answer="yes"):
     answers = {"yes": 1, "y": 1, "ye": 1,
                "no": 0, "n": 0}
     if default_answer == None:
@@ -360,37 +360,45 @@ def putInFile(path, replaceBefore, replaceString):
     folderExist = os.path.isfile(currentPath)
 
     if folderExist:
-        with open(currentPath, "r") as file:
-            fileData = file.read()
+        with open(currentPath, "r") as fileForRead, open(currentPath, "r") as fileAsArray:
+            # Считать данные из файла как строку
+            fileData = fileForRead.read()
 
-        with open(currentPath, "r") as copyFile:
-            lines = copyFile.readlines()
-            if index_containing_substring(lines, replaceString) != -1:
-                print(
-                    f"{Colors.FAIL}Уже имеется, не меняю!{Colors.ENDC} \tВ файле: {path}\t строка: {replaceString}\n")
-                return
-            else:
-                print(
-                    f"{Colors.WARNING}Начинаем поиск в файле {Colors.ENDC}{path}\n")
-                matchesDBSet = index_containing_substring(lines, replaceBefore)
+            # Считать данные из файла в массив
+            lines = fileAsArray.readlines()
 
-                if matchesDBSet != -1:
-                    print("Нашел куда добавить, сейчас сделаю!\t" + "\n")
+            # Проверяем, есть ли уже такая строка в файле (если мультистрок, то проверяет первую строку)
+            print(
+                f"\n{Colors.WARNING}Начинаем поиск в файле {Colors.ENDC}{path}\n")
+            matchesInFile = indexContainingSubstring(
+                lines, replaceString.split("\n")[0])
+            whereReplace = indexContainingSubstring(
+                lines, replaceBefore)
+
+            if matchesInFile == -1:
+                # Существующая декларация не найдена
+                if whereReplace == -1:
+                    # Не нашел где менять
+                    print("Не знаю, куда добавить\n")
+                else:
+                    # Нашел где менять
+                    print("Нашел куда добавить, сейчас сделаю!" + "\n")
                     replacedData = fileData.replace(
-                        lines[matchesDBSet],
-                        f"\t\t{replaceString}\n{lines[matchesDBSet]}"
+                        lines[whereReplace],
+                        f"\t\t{replaceString}\n{lines[whereReplace]}"
                     )
-                    with open(currentPath, "w") as writedFile:
-                        writedFile.write(replacedData)
+                    with open(currentPath, "w") as fileForWrite:
+                        fileForWrite.write(replacedData)
                     print(
                         f"{Colors.OKGREEN}Декларация прошла успешно!{Colors.ENDC}\n")
-                else:
-                    print(
-                        f"{Colors.FAIL}Не нашел что менять, странно...{Colors.ENDC}\n")
-                    return
+            else:
+                # Существующая декларация найдена
+                print(
+                    f"В файле: {path} {Colors.FAIL}Уже имеется{Colors.ENDC} строка:\n{replaceString}\n{Colors.FAIL}не меняю!{Colors.ENDC}\n")
+                return
 
 
-def index_containing_substring(theList, substring):
+def indexContainingSubstring(theList, substring):
     for i, s in enumerate(theList):
         if substring in s:
             return i
@@ -398,19 +406,40 @@ def index_containing_substring(theList, substring):
 
 
 def main():
-    createFolderAsk = yes_no_dialog(
+    createFolderAndDeclareAsk = yesNoDialog(
         f"\nБудут созданы следующие файлы:\n"
         f"{Colors.WARNING}/{projectName}.Api/Controllers/{modelName}Controller.cs\n"
         f"/{projectName}.BLL/Services/{modelName}Service.cs\n"
         f"/{projectName}.Core/Models/Dto/{modelName}/Dto{modelName}.cs\n"
         f"/{projectName}.Core/RepositoryInterfaces/I{modelName}Repository.cs\n"
         f"/{projectName}.Core/ServiceInterfaces/I{modelName}Service.cs\n"
-        f"/{projectName}.DAL/Repositories/{modelName}Repository.cs{Colors.ENDC}\n"
-        f"\nДекларации в следующих файлах:"
-        f"Вы подтверждаете создание данных файлов", "no")
+        f"/{projectName}.DAL/Repositories/{modelName}Repository.cs{Colors.ENDC}\n\n"
+        f"Произведены декларации в следующих файлах:\n"
+        f"{Colors.WARNING}/{projectName}.Api/AutoMapper/MapProfile.cs{Colors.ENDC}\n"
+        f"\t{Colors.HEADER}Configure{modelName}();\n"
+        f"\tprivate void Configure{modelName}()\n"
+        f"\t{{\n"
+        f"\t\tCreateMap<{modelName}, Dto{modelName}>();\n"
+        f"\t\tCreateMap<Dto{modelName}, {modelName}>();\n"
+        f"\t}}{Colors.ENDC}\n\n"
+        f"{Colors.WARNING}/{projectName}.Api/Startup.cs{Colors.ENDC}\n"
+        f"\t{Colors.HEADER}services.AddScoped<{modelName}Service>(provider =>\n"
+        f"\tnew {modelName}Service(provider.GetService<IUnitOfWork>()));{Colors.ENDC}\n\n"
+        f"{Colors.WARNING}/{projectName}.Core/RepositoryInterfaces/IUnitOfWork.cs{Colors.ENDC}\n"
+        f"\t{Colors.HEADER}I{modelName}Repository {modelName}s {{ get; }}{Colors.ENDC}\n\n"
+        f"{Colors.WARNING}/{projectName}.DAL/UnitOfWork.cs{Colors.ENDC}\n"
+        f"\t{Colors.HEADER}public I{modelName}Repository {modelName}s {{ get; }}\n"
+        f"\t{modelName}s = new {modelName}Repository(_context);\n"
+        f"\telse if (typeof(T) == typeof({modelName}))\n"
+        f"\t{{\n"
+        f"\t\treturn {modelName}s as IRepository<T>;\n"
+        f"\t}}{Colors.ENDC}\n\n"
+        f"{Colors.WARNING}/{projectName}.DAL/{projectName}DBContext.cs{Colors.ENDC}\n"
+        f"\t{Colors.HEADER}public DbSet<{modelName}> {modelName}s {{ get; set; }}{Colors.ENDC}\n\n"
+        f"Вы подтверждаете создание данных файлов и описанные декларации?", "no")
 
-    if createFolderAsk:
-        createFiles()
+    if createFolderAndDeclareAsk:
+        # createFiles()
         declarationFiles()
     else:
         print(f"{Colors.OKGREEN}Понял, выключаюсь!{Colors.ENDC}")
