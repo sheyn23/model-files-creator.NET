@@ -2,9 +2,27 @@
 import os
 from pathlib import Path
 
+
+class ChangeParams():
+    def __init__(self, where, what):
+        self.whereChange = where
+        self.whatChange = what
+
+
+class Colors:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKCYAN = '\033[96m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
+
+
 # Получение названия проекта
-# projectName = input("Введите название проекта: ")
-projectName = "Test"
+projectName = input("Введите название проекта: ")
 
 # Получение названия модели
 modelName = input("Введите название модели в стиле CamelCase: ")
@@ -365,7 +383,7 @@ startupContent = (
     f"        }}\n"
     f"        public void ConfigureEnvServices(IServiceCollection services)\n"
     f"        {{\n"
-    f"			services.AddScoped<{modelName}Service>(provider =>\n"
+    f"			services.AddScoped<I{modelName}Service>(provider =>\n"
     f"				new {modelName}Service(provider.GetService<IUnitOfWork>()));\n"
     f"        }}\n"
     f"    }}\n"
@@ -555,18 +573,6 @@ DBContextContent = (
 )
 
 
-class Colors:
-    HEADER = '\033[95m'
-    OKBLUE = '\033[94m'
-    OKCYAN = '\033[96m'
-    OKGREEN = '\033[92m'
-    WARNING = '\033[93m'
-    FAIL = '\033[91m'
-    ENDC = '\033[0m'
-    BOLD = '\033[1m'
-    UNDERLINE = '\033[4m'
-
-
 def yesNoDialog(question, default_answer="yes"):
     answers = {"yes": 1, "y": 1, "ye": 1,
                "no": 0, "n": 0}
@@ -641,119 +647,14 @@ def createFiles():
     )
 
 
-def mapProfileDeclare(path, content):
+def declarationFile(path, content, *changes):
     currentPath = currentDir + path
     fileExist = os.path.isfile(currentPath)
 
     if fileExist:
-        # MapProfile.cs
-        putInFile(
-            path,
-            "Configure",
-            f"\tConfigure{modelName}();"
-        )
-        putInFile(
-            path,
-            "private void Configure",
-            f"private void Configure{modelName}()\n"
-            f"\t\t{{\n"
-            f"\t\t    CreateMap<{modelName}, Dto{modelName}>();\n"
-            f"\t\t    CreateMap<Dto{modelName}, {modelName}>();\n"
-            f"\t\t}}"
-        )
-    else:
-        createFileAnswer = yesNoDialog(
-            f"{Colors.OKCYAN}Файл {Colors.ENDC}{path} {Colors.OKCYAN}не найден. Создать его?{Colors.ENDC}", "no")
-        if createFileAnswer:
-            filePath = Path(path)
-            createFile(filePath.parent, filePath.name, content)
-        return
+        for change in changes:
+            putInFile(path, change.whereChange, change.whatChange)
 
-
-def startupDeclare(path, content):
-    currentPath = currentDir + path
-    fileExist = os.path.isfile(currentPath)
-
-    if fileExist:
-        # Startup.cs
-        putInFile(
-            f"/{projectName}.Api/Startup.cs",
-            "services.AddScoped<I",
-            f"\tservices.AddScoped<{modelName}Service>(provider =>\n"
-            f"\t\t\t\tnew {modelName}Service(provider.GetService<IUnitOfWork>()));\n"
-        )
-    else:
-        createFileAnswer = yesNoDialog(
-            f"{Colors.OKCYAN}Файл {Colors.ENDC}{path} {Colors.OKCYAN}не найден. Создать его?{Colors.ENDC}", "no")
-        if createFileAnswer:
-            filePath = Path(path)
-            createFile(filePath.parent, filePath.name, content)
-        return
-
-
-def iUnitOfWorkDeclare(path, content):
-    currentPath = currentDir + path
-    fileExist = os.path.isfile(currentPath)
-
-    if fileExist:
-        # IUnitOfWork
-        putInFile(
-            f"/{projectName}.Core/RepositoryInterfaces/IUnitOfWork.cs",
-            "{ get; }",
-            f"I{modelName}Repository {modelName}s {{ get; }}"
-        )
-    else:
-        createFileAnswer = yesNoDialog(
-            f"{Colors.OKCYAN}Файл {Colors.ENDC}{path} {Colors.OKCYAN}не найден. Создать его?{Colors.ENDC}", "no")
-        if createFileAnswer:
-            filePath = Path(path)
-            createFile(filePath.parent, filePath.name, content)
-        return
-
-
-def unitOfWorkDeclare(path, content):
-    currentPath = currentDir + path
-    fileExist = os.path.isfile(currentPath)
-
-    if fileExist:
-        # UnitOfWork.cs
-        putInFile(
-            f"/{projectName}.DAL/UnitOfWork.cs",
-            "{ get; }",
-            f"public I{modelName}Repository {modelName}s {{ get; }}"
-        )
-        putInFile(
-            f"/{projectName}.DAL/UnitOfWork.cs",
-            "(_context);",
-            f"\t{modelName}s = new {modelName}Repository(_context);"
-        )
-        putInFile(
-            f"/{projectName}.DAL/UnitOfWork.cs",
-            "else if (typeof(T) == typeof(",
-            f"\telse if (typeof(T) == typeof({modelName}))\n"
-            f"\t\t\t{{\n"
-            f"\t\t\t\treturn {modelName}s as IRepository<T>;\n"
-            f"\t\t\t}}"
-        )
-    else:
-        createFileAnswer = yesNoDialog(
-            f"{Colors.OKCYAN}Файл {Colors.ENDC}{path} {Colors.OKCYAN}не найден. Создать его?{Colors.ENDC}", "no")
-        if createFileAnswer:
-            filePath = Path(path)
-            createFile(filePath.parent, filePath.name, content)
-        return
-
-
-def DBContextDeclare(path, content):
-    currentPath = currentDir + path
-    fileExist = os.path.isfile(currentPath)
-
-    if fileExist:
-        putInFile(
-            f"/{projectName}.DAL/{projectName}DBContext.cs",
-            "public DbSet",
-            f"public DbSet<{modelName}> {modelName}s {{ get; set; }}"
-        )
     else:
         createFileAnswer = yesNoDialog(
             f"{Colors.OKCYAN}Файл {Colors.ENDC}{path} {Colors.OKCYAN}не найден. Создать его?{Colors.ENDC}", "no")
@@ -764,29 +665,72 @@ def DBContextDeclare(path, content):
 
 
 def declarationFiles():
-    mapProfileDeclare(
+    # MapProfile.cs
+    declarationFile(
         f"/{projectName}.Api/AutoMapper/MapProfile.cs",
-        mapProfileContent
+        mapProfileContent,
+        ChangeParams(
+            "Configure",
+            f"\tConfigure{modelName}();"
+        ),
+        ChangeParams(
+            "private void Configure",
+            (
+                f"private void Configure{modelName}()\n"
+                f"\t\t{{\n"
+                f"\t\t    CreateMap<{modelName}, Dto{modelName}>();\n"
+                f"\t\t    CreateMap<Dto{modelName}, {modelName}>();\n"
+                f"\t\t}}"
+            )
+        )
     )
     # Startup.cs
-    startupDeclare(
+    declarationFile(
         f"/{projectName}.Api/Startup.cs",
-        startupContent
+        startupContent,
+        ChangeParams(
+            "services.AddScoped<I",
+            f"\tservices.AddScoped<I{modelName}Service>(provider =>\n"
+            f"\t\t\t\tnew {modelName}Service(provider.GetService<IUnitOfWork>()));\n"
+        )
     )
     # IUnitOfWork
-    iUnitOfWorkDeclare(
+    declarationFile(
         f"/{projectName}.Core/RepositoryInterfaces/IUnitOfWork.cs",
-        iUnitOfWorkContent
+        iUnitOfWorkContent,
+        ChangeParams(
+            "{ get; }",
+            f"I{modelName}Repository {modelName}s {{ get; }}"
+        )
     )
     # UnitOfWork.cs
-    unitOfWorkDeclare(
+    declarationFile(
         f"/{projectName}.DAL/UnitOfWork.cs",
-        unitOfWorkContent
+        unitOfWorkContent,
+        ChangeParams(
+            "{ get; }",
+            f"public I{modelName}Repository {modelName}s {{ get; }}"
+        ),
+        ChangeParams(
+            "(_context);",
+            f"\t{modelName}s = new {modelName}Repository(_context);"
+        ),
+        ChangeParams(
+            "else if (typeof(T) == typeof(",
+            f"\telse if (typeof(T) == typeof({modelName}))\n"
+            f"\t\t\t{{\n"
+            f"\t\t\t\treturn {modelName}s as IRepository<T>;\n"
+            f"\t\t\t}}"
+        )
     )
     # DBContext.cs
-    DBContextDeclare(
+    declarationFile(
         f"/{projectName}.DAL/{projectName}DBContext.cs",
-        DBContextContent
+        DBContextContent,
+        ChangeParams(
+            "public DbSet",
+            f"public DbSet<{modelName}> {modelName}s {{ get; set; }}"
+        )
     )
 
 
@@ -803,7 +747,7 @@ def putInFile(path, replaceBefore, replaceString):
         print(
             f"\n{Colors.WARNING}Начинаем поиск в файле {Colors.ENDC}{path}\n")
         matchesInFile = indexContainingSubstring(
-            lines, replaceString.split("\n")[0])
+            lines, replaceString.split("\n")[0].strip())
         whereReplace = indexContainingSubstring(
             lines, replaceBefore)
 
